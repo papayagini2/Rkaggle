@@ -185,3 +185,10 @@ vignette("broom")
 
 ###
 
+# 1. titanic 점수 높히기
+# 2. titnaic 소스 올리기
+# 3. github 서로 공유해서 가져오기. 
+# 4. 패키지는 tidymodels 전반적인거.
+# 5. 토요일 미팅 장소 공유 드릴테니, 더 좋은 장소 같이 찾기 
+# 6. google meet .화면 튜닝..고민 
+# 7. knit 방법 ..
