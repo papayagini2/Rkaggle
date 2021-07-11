@@ -1,5 +1,10 @@
-library(dplyr);library(magrittr);library(caret);library(recipes);
-library(janitor);library(skimr);
+library(dplyr, warn.conflicts = FALSE, verbose=FALSE);
+library(magrittr, warn.conflicts = FALSE, verbose=FALSE);
+library(caret, warn.conflicts = FALSE, verbose=FALSE);
+library(recipes, warn.conflicts = FALSE, verbose=FALSE);
+library(janitor, warn.conflicts = FALSE, verbose=FALSE);
+library(skimr, warn.conflicts = FALSE, verbose=FALSE);
+
 rm(list=ls())
 setwd("D:/RPrj/Rkaggle/Rkaggle/타이타닉")
 
@@ -36,31 +41,28 @@ full %>%  str()
 # "pclass"       "sex"          "embarked"    -> 범주형 
 #  "name"         "ticket"       "cabin" -> 문자형 
 
-# train/test split 
-full %>%  filter(index == "train") -> train
-full %>%  filter(index == "test")  -> test 
-
 # 목적변수 탐색 
-full$survived %>%  table()
+full %>% ggplot() + aes(x=survived) + geom_bar() 
 full$survived %>%  table() %>%  prop.table() %>% round(2)
 # balanced data 라고 생각됨. 
-
 
 # 수치형 변수: "age"          "sib_sp"    "parch"        "fare" 
 
 # (1) age 
 full$age %>%  table()  # 0.17 ~ 80세 까지 존재함 
-train %>% na.omit() %>% ggplot() + aes(x=age) + geom_histogram()
-# 분포는 어느정도 정규성을 보인다. 
 
-train %>%  ggplot() + aes(x=age) + geom_histogram() + facet_grid(survived ~ . )
-train %>%  ggplot() + aes(x=age) + geom_boxplot()   + facet_grid(survived ~ . )
+full %>% filter(!is.na(full$age))  %>% 
+  ggplot() + aes(x=age) + geom_density()
+
+full %>%  ggplot() + aes(x=age) + geom_histogram() + 
+  facet_grid(survived ~ . )
+
+full %>%  ggplot() + aes(y=age, color = survived) + geom_boxplot() 
 # 생존여부와 나이대는 상관이 있어보임. 
 # 사망자 평균 나이 > 생존자 평균 나이 
 
 # 일단, 결측이 존재하고..
-train$age %>%  is.na() %>%  sum()
-test$age %>%  is.na() %>%  sum() 
+full %>% is.na() %>%  colSums()
 
 # 단순하게 나이가 작다 크다 보다, 아주 어린 사람, 건장한 성인, 노인 간의 차이가 있을 수 있지 않을까 ?
 # 나이 수치를 범주형으로 분리해 보자. 
@@ -79,60 +81,63 @@ full = within(full, {
 })
 ## within 말고 .. recipe()로 step cut 할 수 있을 것 같은데..잘 모르겠음. 
 
-
-full %>% na.omit() %>%  select(grade, survived) %>%  
+full %>% filter(!is.na(full$age)) %>%  
+  select(grade, survived) %>%  
   table() %>% 
   prop.table() %>%    round(2)
 
-full %>% na.omit() %>% ggplot() + aes(x=grade, fill = survived) + geom_bar()
-full %>% na.omit() %>% ggplot() + aes(x=grade, fill = survived) + geom_bar(position='dodge')
+full %>% filter(!is.na(full$age))  %>% 
+  ggplot() + aes(x=grade, fill = survived) + geom_bar()
+full %>% filter(!is.na(full$age)) %>% 
+  ggplot() + aes(x=grade, fill = survived) + geom_bar(position='dodge')
 
-# full에 만들었으니, train, test 다시 셋팅 
+# full에 파생변수 만들었으니, train, test 다시 불러오기  
 full %>%  filter(index == "train") -> train
 full %>%  filter(index == "test")  -> test 
 
-# (2) sib_sp 탐색 
-# of siblings / spouses aboard the Titanic 처자식수 ?? 가족수 
+# (2) sib_sp : # of siblings / spouses aboard the Titanic 처자식수 ?? 가족수 
 full$sib_sp %>%  table()
-train %>%  ggplot() + aes(x=sib_sp) + geom_histogram()
-train %>%  ggplot() + aes(x=sib_sp) + geom_histogram() + facet_grid(survived ~ . )
-train %>%  ggplot() + aes(x=sib_sp) + geom_boxplot() + facet_grid(survived ~ . )
+full %>%   ggplot() + aes(x=sib_sp) + geom_density()
 train %>%  ggplot() + aes(x=factor(sib_sp), fill = survived) + geom_bar(position='dodge') 
+train %>%  ggplot() + aes(x=sib_sp) + geom_boxplot() + facet_grid(survived ~ . )
 # 그렇다고 factor나 order로 변경하면 더 성능이 좋아질 지는 모르겠음. 
 # 변수가 필요하다 정도만 결론 짓고 그대로 수치형으로 사용 
 
+# sib_sp를 적당히 변환해서 정규분포 처럼 만들 수 있을까를 고민 해 봤는데.
 recipe(survived ~ . , data = train) %>%  
   # step_nzv(sib_sp) %>%
   # step_BoxCox(sib_sp) %>%
-  # step_log(sib_sp) %>%
-  # step_sqrt(sib_sp) %>%  
-  # step_YeoJohnson(sib_sp) %>% 
-  # step_scale(sib_sp) %>%
-  # step_center(sib_sp) %>% 
+   # step_log(sib_sp) %>%
+   # step_sqrt(sib_sp) %>%  
+   step_YeoJohnson(sib_sp) %>% 
+   # step_scale(sib_sp) %>%
+   # step_center(sib_sp) %>% 
   prep()  %>%  juice() %>%  
-  ggplot() + aes(x=sib_sp) + geom_histogram()
+  ggplot() + aes(x=sib_sp) + geom_density()
 
+?step_YeoJohnson()
 # sip_sp 는 아무것도 하지 말자 . 
 
 
 # (3) parch 탐색 
-full$parch %>%  table()
+full$parch %>%  table() %>%  plot()
 # of parents / children aboard the Titanic 부모자식수 ??
-train %>%  ggplot() + aes(x=parch) + geom_histogram()
+train %>%  ggplot() + aes(x=parch) + geom_histogram(binwidth=0.5) 
 train %>%  ggplot() + aes(x=factor(parch), fill = survived) + geom_bar(position='dodge') 
 # 그렇다고 factor나 order로 변경하면 더 성능이 좋아질 지는 모르겠음. 
 # 변수가 필요하다 정도만 결론 짓고 그대로 수치형으로 사용 
 
-recipe(survived ~ . , data = train) %>%  
+
+recipe(survived ~ . , data = train %>%  mutate(parch = parch + 1)) %>%  
   # step_nzv(parch) %>%
   # step_BoxCox(parch) %>%
-   # step_log(parch) %>%
+  # step_log(parch) %>%
   # step_sqrt(parch) %>%  
   # step_YeoJohnson(parch) %>% 
   # step_scale(parch) %>%
   # step_center(parch) %>% 
   prep()  %>%  juice() %>%  
-  ggplot() + aes(x=parch) + geom_histogram()
+  ggplot() + aes(x=parch) + geom_density()
 
 # 아무것도 하지 말자. 
 
@@ -152,7 +157,14 @@ recipe(survived ~ . , data = train) %>%
   prep()  %>%  juice() %>%  
   ggplot() + aes(x=fare) + geom_histogram()
 # 음..훨씬 정규분포스러움. 일단 이렇게 전처리하자. 
-  
+
+library(MVN)
+train %>% filter(!is.na(train$age)) %>% 
+  dplyr::select(survived, age, sib_sp, parch, fare) %>%  
+  mvn(data = . , subset = "survived", mvnTest = "hz", 
+      univariatePlot = "histogram", 
+      multivariatePlot = "qq")
+
 
 ##############
 
@@ -175,7 +187,6 @@ table(train$embarked, train$survived) %>%  rowSums()
 30/77
 217/644
 # 생존확률: c > Q > S 
-
 
 
 # 문자형(name, ticket, cabin) 으로 되어 있는 놈들 어떻게 할 거냐.

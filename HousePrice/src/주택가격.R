@@ -20,6 +20,17 @@ test  %>% dim() # 1459   82
 submission %>% dim() # 1459    2
 
 # 일단 기계적으로 풀어보자. 
+full %>%  mutate_if(is.integer, as.numeric) %>% 
+  select_if(is.numeric) %>% 
+  select(-Id)  %>%  
+  na.omit() %>% 
+  prcomp(scale. = TRUE) %>%  
+  summary() %>%  
+  .$importance %>% 
+  as.data.frame() %>%  
+  .[3,] %>%  
+
+
 
 # 범주형 중 결측치 존재열 확인          
 factors <- which(sapply(full, is.factor))
